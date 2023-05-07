@@ -147,8 +147,8 @@ class DB {
     /********************/
     /**  Publications  **/
     /********************/
-    getLikes(){
-        const query = this.orm.select('likes',{liker_id, post_id, comment_id})
+    getLikes(like_id){
+        const query = `select * from likes where like_id = ${like_id}`;
         return query;
     }
     

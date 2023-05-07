@@ -42,6 +42,8 @@ class CONFIG {
             SEND_PUBLIC_MESSAGE_HANDLER: 'SEND_PUBLIC_MESSAGE_HANDLER',
             /**  files  **/
             RECORD_USER_FILE: 'RECORD_USER_FILE',
+            /** publications **/
+            LIKE_POST_HANDLER: 'LIKE_POST_HANDLER',
         }
     }
 }

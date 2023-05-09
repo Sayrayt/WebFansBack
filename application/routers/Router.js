@@ -13,7 +13,7 @@ function Router({ mediator }) {
     router.post('/api/uploadAvatar', uploadAvatar.single('image'), uploadFileHandler(mediator));
     router.post('/api/uploadCover', uploadCover.single('image'), uploadFileHandler(mediator));
     // Publications //
-    router.get('/api/like', likeHandler(mediator));
+    router.get('/api/like/:like_id', likeHandler(mediator));
     return router;
 }
 

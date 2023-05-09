@@ -147,14 +147,13 @@ class DB {
     /********************/
     /**  Publications  **/
     /********************/
-    getLikes(like_id){
-        const query = `select * from likes where like_id = ${like_id}`;
-        return query;
+    async getLike(like_id){
+        return await this.orm.select('likes', '*',{id:like_id} );
+        
     }
     
-    like(liker_id, post_id, comment_id) {
-        const query = this.orm.insert('likes', { liker_id, post_id, comment_id });
-        return query;
+    async like(liker_id, post_id, comment_id) {
+        return await this.orm.insert('likes', { liker_id, post_id, comment_id });;
     }
 }
 

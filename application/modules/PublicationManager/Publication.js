@@ -8,6 +8,7 @@ class Publication extends BaseEntity {
         this.comment_id;
         this.liker_id;
         this.post_id;
+        this.like_id;
         
     }
 

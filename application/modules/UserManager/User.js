@@ -39,11 +39,11 @@ class User extends BaseEntity {
                 };
             }
         }
-        return null;
+        return { random: null, user: null };
     }
 
     async autoLogin({ hash, random, guid }) {
-        const user = await this.db.getUserByGuid(guid);
+        const user = (await this.db.getUserByGuid(guid))[0];
         if(user) {
             this._recordUserInfo(user);
             const checkUser = this.get({ hash, random, params: { guid } });
@@ -86,8 +86,8 @@ class User extends BaseEntity {
             this.login = userData.login;
             this.password = userData.password;
             this.name = userData.name;
-            this.coverTitle = userData.coverTitle;
-            this.avatarTitle = userData.avatarTitle;
+            this.coverTitle = userData.avatar_title;
+            this.avatarTitle = userData.cover_title;
         }
     }
 

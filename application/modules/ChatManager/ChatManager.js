@@ -41,7 +41,7 @@ class ChatManager extends BaseManager {
         const params = { guid, message };
         const sender = this._getUser({ guid, hash, random, params });            // check if token hash matched with params and get according user
         if(sender) {
-            const id = await this.db.recordMessage({ message: jsonMessage, senderId: sender?.id });         // record new message to DB and get it`s id
+            const id = await this.db.recordMessage({ message, senderId: sender?.id });         // record new message to DB and get it`s id
             if(id) {
                 const newMessage = new Message({ id, message, senderId: sender?.id });
                 this.messages.set(id, newMessage);
@@ -105,7 +105,8 @@ class ChatManager extends BaseManager {
     async _joinRoom({ hash, random, guid, recipientGuid }, socket) {
         const params = { guid, recipientGuid };                                 // check if user is valid
         const user = this._getUser({ guid, hash, random, params });
-        if(user) {
+        const recipient = this._getUsers().get(recipientGuid);
+        if(user && recipient) {
             let room;
             if (this.messages.has(`${guid}-${recipientGuid}`)) {                // check if room already exist
                 room = `${guid}-${recipientGuid}`;
@@ -113,7 +114,7 @@ class ChatManager extends BaseManager {
                 room = `${recipientGuid}-${guid}`;
             }
             if(!room) { 
-                const messages = await this.db.getPrivateMessages();            // get private messages
+                const messages = await this.db.getPrivateMessages(user.id, recipient.id);            // get private messages
                 if(messages) {
                     this.messages.set(`${guid}-${recipientGuid}`, messages);    // if room doesn`t exist then create it
                 } else { 
@@ -132,8 +133,9 @@ class ChatManager extends BaseManager {
     async _getPrivateMessages({ hash, random, guid, recipientGuid, offSet, roomName }, socket) {
         const params = { guid, recipientGuid, offSet, roomName };               // check if user is valid
         const user = this._getUser({ guid, hash, random, params });
-        if(user) {
-            const messages = await this.db.getPrivateMessages(offSet);          // get private messages
+        const recipient = this._getUsers().get(recipientGuid);
+        if(user && recipient) {
+            const messages = await this.db.getPrivateMessages(user.id, recipient.id, 40, offSet); // get private messages
             if(messages) {
                 this.io.to(room).emit(messages);
                 socket.emit('', true);
@@ -145,7 +147,7 @@ class ChatManager extends BaseManager {
     /**  inner manager functions  **/
 
     async _onDatabaseInit() {
-        (await this.db.getLastMessages())
+        (await this.db.getStorageMessages())
             .forEach(message => 
                 this.messages.set(message?.id, new Message(message))
             );

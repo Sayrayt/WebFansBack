@@ -62,13 +62,15 @@ class ORM {
      * @param {string} table A table name
      * @param {object} update columns of the table that you want to update @example { id: 2, name: 'alex' }
      * @param {object} conditions the conditions by wich the table is filtered @example { guid: '1234-52565' }
+     * @param {array} returning array of keys you need to function return
      * @param {string} operator a boolean operator "AND" is default
      * @return {Promise<true | null>} return updated row
      */
     async update(
         table, 
         update = {}, 
-        conditions, 
+        conditions,
+        returning,
         operator = 'AND'
     ) {
         let index = 0;
@@ -88,11 +90,12 @@ class ORM {
         const query = `
             UPDATE ${table} 
             SET ${params} 
-            ${conditions ? `WHERE ${condition}` : ''}
+            ${ conditions ? `WHERE ${condition}` : '' }
+            ${ returning ? `RETURNING ${returning.join(', ')}` : '' }
         `;
         let response = null;
         try {
-            response = await this.db.query(query, values);
+            response = (await this.db.query(query, values)).rows;
         } catch (e) { console.log("error:", e.detail || e.hint) };
         return response;
     }

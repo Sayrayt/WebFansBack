@@ -25,16 +25,22 @@ const common = new Common;
 new ChatManager({ mediator, io, db, common, SOCKETS });
 new UserManager({ mediator, io, db, common, SOCKETS });
 new FileManager({ mediator, io, db, common,  SOCKETS });
-new PublicationManager({ mediator, io, db, common, SOCKETS });
+const publications = new PublicationManager({ mediator, io, db, common,  SOCKETS });
+
 
 const Router = require('./application/routers/Router');
+const Publication = require('./application/modules/PublicationManager/Publication');
 app.use(express.static('public'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(new Router({ mediator }));
+
+
 
 function initCB() {
     mediator.call(MEDIATOR.EVENTS.ON_DATABASE_INIT, '');
 }
 
 server.listen(PORT, () => console.log('Server is up'));
+
+exports.PublicationTestModule = publications;

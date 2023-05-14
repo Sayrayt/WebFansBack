@@ -1,4 +1,3 @@
-const { query } = require('express');
 const ORM = require('./ORM');
 const { Client } = require('pg');
 
@@ -34,88 +33,90 @@ class DB {
 
     async recordUser({ login, password, name, guid }) {
         const user = await this.orm.select('users', 'login', { login });                                     // chec if user alredy exist
-        if (!user[0]) {
-            const [{ id }] = await this.orm.insert('users', { login, password, name, guid }, ['id']);    // create new user
-            if (id) {
+        if(!user[0]) {
+            const [ { id } ] = await this.orm.insert('users', { login, password, name, guid }, [ 'id' ]);    // create new user
+            if(id) {
                 const isCreated = await this.orm.insert('options', { user_id: id });                         // create options for this user
-                if (isCreated) { return true };
+                if(isCreated) { return true };
             }
         }
         return null;
-    }
+    } 
 
     async login(login, password, token) {
-        const dbAnswer = await this.orm.update('users', { token }, { login, password });            // update token
-        if (dbAnswer) {
-            const query = this._getUserInfoQuery('AND login=? AND password=?');                     // create query with special conditions `bout user
-            return new Promise((resolve) => {
-                this.db.select(query, [login, password], (error, row) => resolve(error ? null : row)); // get all the info `bout user
-            });
+        const user = (await this.orm.update('users', { token }, { login, password }, ['*']))[0];          // update token and return user data
+        if(user) {
+            const userOptions = (await this.orm.select('options', 'avatar_title, cover_title', { user_id: user.id }))[0]; // get user optonal data
+            return { ...user, ...userOptions };
         }
-        return null;
     }
 
     logout(guid) {
         return this.orm.update('users', { token: null }, { guid });
     }
 
-    getUserByGuid(guid) {
-        const query = this._getUserInfoQuery('AND guid=?');             //create query with special conditions `bout user
-        return new Promise((resolve) => {
-            //this.db.get(query, guid, (error, row) => resolve(error ? null : row));
-        });
+    async getUserByGuid(guid) {
+        const query = `
+            SELECT users.*, o.avatar_title, o.cover_title
+            FROM users, options AS o
+            WHERE users.id = o.user_id AND guid = $1
+        `;
+        let response = null;
+        try { response = (await this.db.query(query, [guid]))?.rows; } 
+        catch (e) { console.log('error:', e) };
+        return response;
     }
 
     /************/
     /**  chat  **/
     /************/
 
-    recordMessage({ message, senderId, recipientId = null }) {
-        return this.orm.insert('messages', { message, senderId, recipientId });
+    recordMessage({ message, senderId, recipientId=null }) {
+        return this.orm.insert('messages', { message, sender_id: senderId, recipient_id: recipientId, date: Date.now() }, ['id']);
     }
 
     editMessage({ message, id }) {
         return this.orm.update('messages', { message }, { id });
     }
 
-    getLastMessages() {
-        const query = this._getMessagesQuery();
-        return new Promise((resolve) => {
-            //this.db.all(query, (error, rows) => resolve(error ? null : rows));
-        });
+    async getStorageMessages(offSet = 0, limit  = 40) {
+        const query = `
+            SELECT * FROM messages WHERE recipient_id IS NULL
+            ORDER BY id DESC
+            LIMIT ${limit} OFFSET ${offSet}
+        `;
+        let response = null;
+        try { response = (await this.db.query(query))?.rows; }
+        catch (e) { console.log('error:', e) };
+        return response;
     }
 
-    getStorageMessages(offSet) {
-        const query = this._getMessagesQuery(offSet);
-        return new Promise((resolve) => {
-            //this.db.all(query, (error, rows) => resolve(error ? null : rows));
-        });
-    }
-
-    getPrivateMessages(offSet = 0) {
+    async getPrivateMessages(senderId, recipientId, limit = 40, offSet=0) {
         const query = `
             SELECT * FROM messages
-            WHERE (senderId = 1 AND recipientId = 2) OR (recipientId = 1 AND senderId = 2)
+            WHERE (sender_id = ${senderId} AND recipient_id = ${recipientId}) OR (recipient_id = ${recipientId} AND sender_id = ${senderId})
             ORDER BY id
-            LIMIT 40 OFFSET ${offSet}
+            LIMIT ${limit} OFFSET ${offSet}
         `;
-        return new Promise((resolve) => {
-            //this.db.all(query, (error, rows) => resolve(error ? null : rows));
-        });
+        let response = null;
+        try { response = (await this.db.query(query))?.rows; }
+        catch (e) { console.log('error:', e) };
+        return response;
     }
 
-    getLastPrivateMessages(id, limit = 7) {
-        const query = `
-            SELECT max(m.id) AS id, m.message, m.senderId, m.recipientId, u.guid, u.name, o.avatarTitle
-            FROM messages AS m, users AS u, usersOptions AS o
-            WHERE (senderId=${id} OR recipientId=${id}) AND (m.recipientId = u.id AND u.id <> ${id} OR m.senderId = u.id) AND m.recipientId IS NOT NULL
-            GROUP BY m.recipientId + m.senderId
-            ORDER BY id DESC
-            LIMIT ${limit}
-        `;
-        return new Promise((resolve) => {
-            //this.db.all(query, (error, rows) => resolve(error ? null : rows));
-        });
+    async getLastPrivateMessages(id, limit = 10) {
+        //const query = `
+        //    SELECT max(m.id) AS id, m.message, m.sender_id, m.recipient_id, u.guid, u.name, o.avatar_title
+        //    FROM messages AS m, users AS u, options AS o
+        //    WHERE (sender_id=${id} OR recipient_id=${id}) AND (m.recipient_id = u.id AND u.id <> ${id} OR m.sender_id = u.id) AND m.recipient_id IS NOT NULL
+        //    GROUP BY m.recipient_id + m.sender_id
+        //    ORDER BY id DESC
+        //    LIMIT ${limit}
+        //`;
+        //let response = null;
+        //try { response = await this.db.query(query); }
+        //catch (e) { console.log('error:', e) };
+        //return response;
     }
 
     /************/
@@ -123,37 +124,83 @@ class DB {
     /************/
 
     async recordImageTitle(userId, type, title) {
-        return this.orm.update('usersOptions', { [`${type}Title`]: title }, { userId });
+        return this.orm.update('options', { [`${type}Title`]: title }, { userId });
     }
 
-    /** inner functions **/
+    /****************/
+    /**  homework  **/
+    /****************/
 
-    _getUserInfoQuery(ending = '') {
-        return `
-            SELECT users.*, o.avatarTitle, o.coverTitle 
-            FROM users, usersOptions AS o
-            WHERE users.id = o.userId ${ending}
+    //создать публикацию
+    addPublication(publisherId, title, image, description, date) {
+        return this.orm.insert('publications', { publisher_id: publisherId, title, image, description, date });
+    }
+
+    //изменить публикацию
+    async editPublication(id, editedData) {
+        return this.orm.update('publications', editedData, { publisher_id: id });
+    }
+
+    //Поставить/снять лайк
+    async likePublication(publicationId, userId) {
+        this.orm.insert('likes', { liker_id: userId, post_id: publicationId });
+        this.orm.update('publications', { likes: 'publications.likes + 1' }, { id });
+    }
+    async removePublicationLike(publicationId, userId) {
+        const like = await this.orm.select('likes', 'id', { post_id: publicationId, liker_id: userId });
+        if(like) {
+            this.orm.delete('likes', { liker_id: userId, post_id: publicationId });
+            this.orm.update('publications', { likes: 'publications.likes - 1' }, { id });
+        }
+    }
+
+    //получить публикации юзера
+    async getUserPublications(id) {
+        return this.orm.select('publications', '*', { publisher_id: id });
+    }
+
+    //получить лайкнутые публикации
+    async getLikedPublications(id) {
+        const query = `
+            SELECT p.id, p.publisher_id, p.title, p.image, p.likes, p.views, p.comments, p.description, p.tags, p.date
+            FROM 
+                publications AS p INNER JOIN likes AS l
+                ON l.post_id = p.id
+            WHERE l.liker_id = ${id}
         `;
+        let response = null;
+        try { response = (await this.db.query(query))?.rows; }
+        catch (e) { console.log('error:', e) };
+        return response;
     }
 
-    _getMessagesQuery(offSet = 0) {
-        return `
-            SELECT * FROM messages WHERE recipientId IS NULL
-            ORDER BY id DESC
-            LIMIT 40 OFFSET ${offSet}
-        `;
+    //добавить комент к записи
+    async addPublicationComment(commentator_id, publication_id, comment, date) {
+        this.orm.insert('comments', { commentator_id, publication_id, comment, date });
+        this.orm.update('publications', { comments: 'publications.comments + 1' }, { publication_id });
     }
 
-    /********************/
-    /**  Publications  **/
-    /********************/
-    async getLike(like_id){
-        return await this.orm.select('likes', '*',{id:like_id} );
-        
+    //изменть комент
+    async editPublicationComment(commentator_id, publication_id, editedComment) {
+        this.orm.update('comments', { comment: editedComment }, { commentator_id, publication_id, });
     }
-    
-    async like(liker_id, post_id, comment_id) {
-        return await this.orm.insert('likes', { liker_id, post_id, comment_id });;
+
+    //удалить пуликацию/лайк/комент/юзера
+    async deletePublication(id) {
+        this.orm.delete('publications', { id })
+    }
+    async removePublicationLike(publicationId, userId) {
+        const like = await this.orm.select('likes', 'id', { post_id: publicationId, liker_id: userId });
+        if(like) {
+            this.orm.delete('likes', { liker_id: userId, post_id: publicationId });
+            this.orm.update('publications', { likes: 'publications.likes - 1' }, { id });
+        }
+    }
+    async deleteComment(id) {
+        this.orm.delete('comments', { id });
+    }
+    async deleteUser() {
+        this.orm.delete('users', { id });
     }
 }
 

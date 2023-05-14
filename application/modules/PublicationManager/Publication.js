@@ -1,14 +1,15 @@
 const BaseEntity = require('../BaseEntity');
 
 class Publication extends BaseEntity {
-    constructor({ soketId,  ...options }) {
+    constructor({...options}) {
         super(options);
 
-        this.id;
-        this.comment_id;
-        this.liker_id;
-        this.post_id;
-        this.like_id;
+        this.id = id;
+        this.comment_id = comment_id;
+        this.liker_id = liker_id;
+        this.post_id = post_id;
+        this.like_id = like_id;
+        this.soketId = soketId;
         
     }
 

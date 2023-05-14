@@ -1,9 +1,11 @@
 const BaseManager = require('../BaseManager');
 const Publication = require('./Publication');
 
+
 class PublicationManager extends BaseManager {
     constructor(options) {
         super(options);
+        
         
 
         const {
@@ -23,7 +25,7 @@ class PublicationManager extends BaseManager {
         return dbDate;
     }*/
 
-    like({ like_id }) {
+    like({ like_id =1  }) {
 
         const dbDate = this.db.getLike(like_id);
         return dbDate;

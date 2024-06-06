@@ -35,7 +35,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(new Router({ mediator }));
 
-
+//fsdfsdfsdf
 
 function initCB() {
     mediator.call(MEDIATOR.EVENTS.ON_DATABASE_INIT, '');
